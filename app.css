@@ -66,6 +66,7 @@ svg { pointer-events: none; }
 .remote { width: 100%; display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 2.2dvh, 20px); }
 .row { width: 100%; display: grid; gap: 12px; }
 .r3 { grid-template-columns: repeat(3, 1fr); }
+.r2 { grid-template-columns: repeat(2, 1fr); }
 .row .key { width: 100%; }
 .rmid { grid-template-columns: repeat(3, 1fr); align-items: center; }
 .cell { display: flex; justify-content: center; }

@@ -2,7 +2,7 @@
   'use strict';
   var PORT = 8002, DEF_IP = '192.168.29.2', DEF_LABEL = 'Phone Remote';
   var K = { token: 'tvremote.token', label: 'tvremote.label', ip: 'tvremote.ip', haptic: 'tvremote.haptics', done: 'tvremote.onboarded' };
-  var APPS = { youtube: '111299001912', netflix: '3201907018807' };
+  var APPS = { youtube: '111299001912', netflix: '3201907018807', prime: '3201910019365', appletv: '3201807016597' };
   var MAX_LOG = 60, QUEUE_MS = 8000;
   var IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
   var CERT_HINT = 'Browser probably blocked the TV\'s certificate - redo Trust the TV in Settings.';
@@ -31,12 +31,14 @@
   }
   function setHint(t) { $('hint').textContent = t || ''; }
 
-  // ---- haptics: vibrate on Android, hidden switch toggle on iOS 18 Safari ----
-  var hLabel = $('hapticLabel');
+  // ---- haptics: vibrate on Android; on iOS 18 a hidden switch toggle plays a tap,
+  // but only inside a real user gesture (touchend), so iOS taps are fired from there ----
+  var hLabel = $('hapticLabel'), canVibrate = typeof navigator.vibrate === 'function';
   function haptic() {
-    if (!hapticOn) return;
-    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
-    else { try { hLabel.click(); } catch (e) {} }
+    if (hapticOn && canVibrate) { try { navigator.vibrate(8); } catch (e) {} }
+  }
+  function iosTap() {
+    if (hapticOn && !canVibrate) { try { hLabel.click(); } catch (e) {} }
   }
 
   // ---- status ----
@@ -212,8 +214,16 @@
   function sendKey(key) {
     return sendMsg({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } }, key);
   }
+  // The TV ignores ed.apps.launch for some apps (Netflix); its REST endpoint launches all of them.
   function launchApp(name) {
-    return sendMsg({ method: 'ms.channel.emit', params: { event: 'ed.apps.launch', to: 'host', data: { appId: APPS[name], action_type: 'DEEP_LINK' } } }, 'launch ' + name);
+    haptic();
+    var url = 'https://' + tvIp + ':' + PORT + '/api/v2/applications/' + APPS[name];
+    fetch(url, { method: 'POST', mode: 'no-cors', cache: 'no-store' })
+      .then(function () { log('Launched ' + name); })
+      .catch(function (e) {
+        log('Launch ' + name + ' failed (' + e + ') - trying socket', 'hint');
+        sendMsg({ method: 'ms.channel.emit', params: { event: 'ed.apps.launch', to: 'host', data: { appId: APPS[name], action_type: 'DEEP_LINK' } } }, 'launch ' + name);
+      });
   }
 
   // ---- buttons: pointer events, instant .down class, hold-repeat ----
@@ -241,6 +251,7 @@
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (t) {
       b.addEventListener(t, function () { if (curBtn === b) release(); });
     });
+    b.addEventListener('touchend', iosTap);
     b.addEventListener('click', function (e) { if (e.detail === 0) onDown(b); }); // keyboard / assistive
     b.addEventListener('contextmenu', noMenu);
   }
@@ -293,6 +304,7 @@
       sendKey(tapKey(p, e.clientX, e.clientY));
     }
   });
+  pad.addEventListener('touchend', iosTap);
   pad.addEventListener('pointercancel', endPad);
   pad.addEventListener('lostpointercapture', function () { if (P) endPad(); });
 
@@ -337,7 +349,7 @@
   $('hapticTog').checked = hapticOn;
   $('hapticTog').addEventListener('change', function () {
     hapticOn = this.checked; lsSet(K.haptic, hapticOn ? '1' : '0');
-    haptic();
+    haptic(); iosTap();
   });
 
   // ---- lifecycle ----
