@@ -33,12 +33,20 @@
 
   // ---- haptics: vibrate on Android; on iOS 18 a hidden switch toggle plays a tap,
   // but only inside a real user gesture (touchend), so iOS taps are fired from there ----
-  var hLabel = $('hapticLabel'), canVibrate = typeof navigator.vibrate === 'function';
+  var canVibrate = typeof navigator.vibrate === 'function';
   function haptic() {
     if (hapticOn && canVibrate) { try { navigator.vibrate(8); } catch (e) {} }
   }
+  // Fresh switch inside a hidden label each time (same approach as the ios-haptics library).
   function iosTap() {
-    if (hapticOn && !canVibrate) { try { hLabel.click(); } catch (e) {} }
+    if (!hapticOn || canVibrate) return;
+    try {
+      var l = document.createElement('label'), i = document.createElement('input');
+      l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
+      i.type = 'checkbox'; i.setAttribute('switch', '');
+      l.appendChild(i); document.head.appendChild(l);
+      l.click(); document.head.removeChild(l);
+    } catch (e) {}
   }
 
   // ---- status ----
@@ -346,6 +354,7 @@
     log('Pairing forgotten (token cleared)');
     disconnect(); refreshUi(); openSheet(false);
   });
+  $('hapticTest').addEventListener('click', function () { haptic(); iosTap(); log('Vibration test fired (' + (canVibrate ? 'vibrate' : 'iOS switch') + ')'); });
   $('hapticTog').checked = hapticOn;
   $('hapticTog').addEventListener('change', function () {
     hapticOn = this.checked; lsSet(K.haptic, hapticOn ? '1' : '0');
