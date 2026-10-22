@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TV Remote</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Remote">
+<meta name="theme-color" content="#000000">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8.5M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" stroke-width="3.6" stroke-dasharray="2.25 2.25"/><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.4"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-playpause" viewBox="0 0 24 24"><path d="M2.5 5.5v13l9-6.5z" fill="currentColor" stroke="none"/><rect x="14" y="5.5" width="3" height="13" rx="1" fill="currentColor" stroke="none"/><rect x="19.5" y="5.5" width="3" height="13" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5l5 4v-13l-5 4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></symbol>
+    <symbol id="i-source" viewBox="0 0 24 24"><path d="M3.5 12h11M10.5 8l4 4-4 4M15 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <header class="top">
+    <div class="conn" id="conn">
+      <span class="dot disconnected" id="dot"></span>
+      <div class="connText"><b id="tvName">Samsung TV</b><small id="stat">Offline</small></div>
+    </div>
+    <div class="tools">
+      <button class="icobtn" id="gear" type="button" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <button class="key power" type="button" data-key="KEY_POWER" aria-label="Power"><svg class="ic"><use href="#i-power"/></svg></button>
+    </div>
+  </header>
+
+  <div class="hint" id="hint" role="status"></div>
+
+  <main class="stage">
+    <div class="remote">
+      <div class="pad" id="pad" aria-label="Touchpad: swipe to move, tap to select">
+        <i class="e eu"></i><i class="e ed"></i><i class="e el"></i><i class="e er"></i>
+        <div class="glow" id="glow"></div>
+        <div class="ripple" id="ripple"></div>
+      </div>
+
+      <div class="row r3">
+        <button class="key" type="button" data-key="KEY_RETURN" aria-label="Back"><svg class="ic"><use href="#i-back"/></svg></button>
+        <button class="key" type="button" data-key="KEY_HOME" aria-label="Home"><svg class="ic"><use href="#i-home"/></svg></button>
+        <button class="key" type="button" data-act="playpause" aria-label="Play or pause"><svg class="ic"><use href="#i-playpause"/></svg></button>
+      </div>
+
+      <div class="row rmid">
+        <div class="cell"><button class="key mute" type="button" data-key="KEY_MUTE" aria-label="Mute"><svg class="ic"><use href="#i-mute"/></svg></button></div>
+        <div class="cell">
+          <div class="rocker">
+            <button class="key rk" type="button" data-key="KEY_VOLUP" data-repeat="1" aria-label="Volume up"><svg class="ic"><use href="#i-plus"/></svg></button>
+            <span class="rl">VOL</span>
+            <button class="key rk" type="button" data-key="KEY_VOLDOWN" data-repeat="1" aria-label="Volume down"><svg class="ic"><use href="#i-minus"/></svg></button>
+          </div>
+        </div>
+        <div class="cell">
+          <div class="rocker">
+            <button class="key rk" type="button" data-key="KEY_CHUP" aria-label="Channel up"><svg class="ic"><use href="#i-up"/></svg></button>
+            <span class="rl">CH</span>
+            <button class="key rk" type="button" data-key="KEY_CHDOWN" aria-label="Channel down"><svg class="ic"><use href="#i-down"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row r3 apps">
+        <button class="key" type="button" data-key="KEY_SOURCE" aria-label="Source"><svg class="ic sm"><use href="#i-source"/></svg><span>Source</span></button>
+        <button class="key" type="button" data-app="youtube">YouTube</button>
+        <button class="key" type="button" data-app="netflix">Netflix</button>
+      </div>
+    </div>
+
+    <section class="onboard" id="onboard" hidden>
+      <div class="obcard">
+        <h2>Pair your TV</h2>
+        <ol>
+          <li>
+            <span class="n">1</span>
+            <div><b>Trust the TV</b>
+              <p>Open the TV page, accept the certificate warning, then come back here.</p>
+              <a class="btn" id="obTrust" href="#" target="_blank" rel="noopener">Open TV page</a></div>
+          </li>
+          <li>
+            <span class="n">2</span>
+            <div><b>Connect and press Allow on the TV</b>
+              <p>Use the TV's own remote to select Allow.</p>
+              <button class="btn green" id="obConnect" type="button">Connect</button></div>
+          </li>
+        </ol>
+        <p class="obnote">Wrong TV address? Change it in Settings (top right).</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="sheet" id="sheet" inert aria-hidden="true">
+  <div class="backdrop" id="backdrop"></div>
+  <div class="panel" role="dialog" aria-label="Settings">
+    <div class="phead"><h2>Settings</h2><button class="done" id="done" type="button">Done</button></div>
+
+    <label class="fl" for="ip">TV IP address</label>
+    <input id="ip" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.29.2">
+    <div class="fe" id="ipErr"></div>
+
+    <label class="fl" for="label">Device label</label>
+    <input id="label" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Phone Remote">
+
+    <a class="btn" id="trust" href="#" target="_blank" rel="noopener">Trust the TV</a>
+    <p class="note">iPhone: tap Show Details, then visit this website. Android: tap Advanced, then Proceed. Then come back here.</p>
+
+    <button class="btn green" id="reconnect" type="button">Connect / Reconnect</button>
+
+    <div class="trow"><span>Haptics</span><label class="tg"><input type="checkbox" id="hapticTog"><i></i></label></div>
+
+    <button class="btn danger" id="forget" type="button">Forget pairing</button>
+    <p class="note" id="tokState"></p>
+
+    <details class="diag">
+      <summary>Diagnostics</summary>
+      <div id="log"></div>
+    </details>
+  </div>
+</div>
+
+<!-- iOS 18 haptic trick: toggling a switch checkbox via its label plays a light tap. Kept off-screen. -->
+<input type="checkbox" switch id="hapticSwitch" class="hx" tabindex="-1" aria-hidden="true">
+<label for="hapticSwitch" id="hapticLabel" class="hx" aria-hidden="true"></label>
+
+<script src="app.js"></script>
+</body>
+</html>
