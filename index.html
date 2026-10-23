@@ -41,7 +41,7 @@
     </div>
     <div class="tools">
       <button class="icobtn" id="gear" type="button" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
-      <button class="key power" type="button" data-key="KEY_POWER" aria-label="Power"><svg class="ic"><use href="#i-power"/></svg></button>
+      <button class="key power" id="power" type="button" aria-label="Screen on"><svg class="ic"><use href="#i-power"/></svg></button>
     </div>
   </header>
 
@@ -131,6 +131,7 @@
     <button class="btn green" id="reconnect" type="button">Connect / Reconnect</button>
 
     <div class="trow"><span>Haptics</span><label class="tg"><input type="checkbox" id="hapticTog"><i></i></label></div>
+    <p class="note">Power = screen off/on (TV stays on Wi-Fi). Hold Power = switch TV fully off.</p>
     <div class="trow"><span>Vibration test: flip this switch</span><input type="checkbox" switch aria-label="Vibration test switch"></div>
     <button class="btn" id="hapticTest" type="button">Test remote vibration</button>
 

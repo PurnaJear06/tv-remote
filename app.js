@@ -1,9 +1,10 @@
 (function () {
   'use strict';
   var PORT = 8002, DEF_IP = '192.168.29.2', DEF_LABEL = 'Phone Remote';
-  var K = { token: 'tvremote.token', label: 'tvremote.label', ip: 'tvremote.ip', haptic: 'tvremote.haptics', done: 'tvremote.onboarded' };
+  var K = { token: 'tvremote.token', label: 'tvremote.label', ip: 'tvremote.ip', haptic: 'tvremote.haptics', done: 'tvremote.onboarded', scr: 'tvremote.screenOff' };
   var APPS = { youtube: '111299001912', netflix: '3201907018807', prime: '3201910019365', appletv: '3201807016597' };
-  var MAX_LOG = 60, QUEUE_MS = 8000;
+  var MAX_LOG = 60, QUEUE_MS = 8000, LONG_MS = 900;
+  var NOWAKE = { KEY_VOLUP: 1, KEY_VOLDOWN: 1, KEY_MUTE: 1 }; // keys that don't bring the picture back
   var IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
   var CERT_HINT = 'Browser probably blocked the TV\'s certificate - redo Trust the TV in Settings.';
 
@@ -19,6 +20,8 @@
   var retry = false, attempt = 0, failStreak = 0, retryTimer = null, connectTimer = null, queued = null;
   var tvIp = lsGet(K.ip); if (!tvIp || !IPV4.test(tvIp)) tvIp = DEF_IP;
   var hapticOn = lsGet(K.haptic) !== '0';
+  // Power = Picture Off (TV stays on Wi-Fi). The page can't read TV state, so remember it per device.
+  var screenOff = lsGet(K.scr) === '1', busy = false, stepT = null;
 
   // ---- log + hint ----
   var logEl = $('log');
@@ -55,7 +58,7 @@
     var prev = state; state = s;
     $('dot').className = 'dot ' + s;
     $('stat').textContent = (s === 'connecting' && retry && attempt > 0) ? 'Reconnecting' : STAT[s];
-    if (prev === 'connected' && s !== 'connected') release();
+    if (prev === 'connected' && s !== 'connected') { release(); if (busy) abortOff('Connection lost - screen off cancelled. Tap Power to retry.'); }
   }
   function hasToken() { return !!lsGet(K.token); }
   function refreshUi() {
@@ -155,7 +158,7 @@
         if (!up) {
           failStreak++;
           if (!opened && ev.code === 1006) log('Closed before open (TV off, or certificate not trusted)', 'hint');
-          if (failStreak === 4) setHint('Can\'t reach the TV. Check it is on and on this Wi-Fi (or redo Trust the TV in Settings).');
+          if (failStreak === 4) setHint('Can\'t reach the TV. If it was fully switched off, turn it on with the TV\'s own button \u2014 after that, use this Power button (it keeps the TV reachable).');
         }
         setState('disconnected');
         scheduleRetry();
@@ -219,11 +222,76 @@
     if (Date.now() - q.t <= QUEUE_MS) write(q.msg, q.label + ' (queued)');
     else log('Dropped stale queued ' + q.label, 'hint');
   }
+  function keyMsg(key, cmd) {
+    return { method: 'ms.remote.control', params: { Cmd: cmd || 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } };
+  }
   function sendKey(key) {
-    return sendMsg({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } }, key);
+    if (busy) return false; // screen-off sequence running
+    if (!NOWAKE[key]) setScreenOff(false); // any other key brings the picture back
+    return sendMsg(keyMsg(key), key);
+  }
+  function isUp() { return state === 'connected' && ws && ws.readyState === 1; }
+
+  // ---- power: screen off/on via Picture Off (accessibility shortcut menu) ----
+  function setScreenOff(v) {
+    if (v !== screenOff) { screenOff = v; lsSet(K.scr, v ? '1' : '0'); }
+    var p = $('power');
+    p.classList.toggle('scr-off', screenOff);
+    p.setAttribute('aria-label', screenOff ? 'Screen off' : 'Screen on');
+  }
+  function offSteps() {
+    var l = [{ c: 'Press', k: 'KEY_MUTE', w: 2000 }, { c: 'Release', k: 'KEY_MUTE', w: 1200 }], i;
+    for (i = 0; i < 16; i++) l.push({ c: 'Click', k: 'KEY_UP', w: 120 });
+    for (i = 0; i < 11; i++) l.push({ c: 'Click', k: 'KEY_DOWN', w: 120 });
+    l.push({ c: 'Click', k: 'KEY_ENTER', w: 0 });
+    return l;
+  }
+  function endOff() { busy = false; if (stepT) { clearTimeout(stepT); stepT = null; } }
+  function abortOff(msg) {
+    endOff(); setHint(msg); log('Screen off aborted: ' + msg, 'hint');
+  }
+  function runOff(l, i) {
+    stepT = null;
+    if (!busy) return;
+    if (!isUp()) { abortOff('Connection lost - screen off cancelled. Tap Power to retry.'); return; }
+    var s = l[i];
+    try { ws.send(JSON.stringify(keyMsg(s.k, s.c))); }
+    catch (e) { log('send failed: ' + e, 'err'); abortOff('Send failed - screen off cancelled. Tap Power to retry.'); return; }
+    if (i === l.length - 1) {
+      endOff(); setScreenOff(true); setHint('');
+      log('Screen off sequence done', 'ok');
+      return;
+    }
+    stepT = setTimeout(function () { runOff(l, i + 1); }, s.w);
+  }
+  function needUp(again) {
+    if (isUp()) return false;
+    setHint('Connecting\u2026 ' + again);
+    if (hasToken()) kick(); else log('Not paired - Power not sent', 'hint');
+    return true;
+  }
+  function powerTap() {
+    if (busy) return;
+    if (screenOff) { // wake: KEY_RETURN (queues if offline)
+      setScreenOff(false);
+      sendMsg(keyMsg('KEY_RETURN'), 'KEY_RETURN');
+      return;
+    }
+    haptic();
+    if (needUp('tap Power again')) return;
+    busy = true; setHint('Turning screen off\u2026'); log('Screen off sequence started');
+    runOff(offSteps(), 0);
+  }
+  function powerHold() {
+    if (busy || needUp('hold Power again')) return;
+    if (!window.confirm('Turn the TV fully off? The phone can\'t turn it back on \u2014 you\'ll need the TV\'s own power button.')) return;
+    if (!isUp()) { setHint('Connection lost - hold Power to try again.'); return; }
+    if (write(keyMsg('KEY_POWER'), 'KEY_POWER')) setScreenOff(false);
   }
   // The TV ignores ed.apps.launch for some apps (Netflix); its REST endpoint launches all of them.
   function launchApp(name) {
+    if (busy) return;
+    setScreenOff(false);
     haptic();
     var url = 'https://' + tvIp + ':' + PORT + '/api/v2/applications/' + APPS[name];
     fetch(url, { method: 'POST', mode: 'no-cors', cache: 'no-store' })
@@ -235,8 +303,10 @@
   }
 
   // ---- buttons: pointer events, instant .down class, hold-repeat ----
-  var holdT = null, repT = null, curBtn = null;
+  var holdT = null, repT = null, curBtn = null, pwT = null, pwDown = false, pwLong = false;
   function release() {
+    if (pwT) { clearTimeout(pwT); pwT = null; }
+    pwDown = false;
     if (holdT) { clearTimeout(holdT); holdT = null; }
     if (repT) { clearInterval(repT); repT = null; }
     if (curBtn) { curBtn.classList.remove('down'); curBtn = null; }
@@ -263,7 +333,29 @@
     b.addEventListener('click', function (e) { if (e.detail === 0) onDown(b); }); // keyboard / assistive
     b.addEventListener('contextmenu', noMenu);
   }
-  Array.prototype.forEach.call(document.querySelectorAll('.key'), function (b) { bindPress(b, fire); });
+  Array.prototype.forEach.call(document.querySelectorAll('.key:not(.power)'), function (b) { bindPress(b, fire); });
+  // Power: tap = screen off/on, hold >= 900 ms = full power-off (never both)
+  (function () {
+    var b = $('power');
+    b.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      release(); curBtn = b; b.classList.add('down');
+      try { b.setPointerCapture(e.pointerId); } catch (x) {}
+      pwDown = true; pwLong = false;
+      pwT = setTimeout(function () { pwT = null; pwLong = true; haptic(); powerHold(); }, LONG_MS);
+    });
+    b.addEventListener('pointerup', function () {
+      var tap = pwDown && !pwLong;
+      release();
+      if (tap) powerTap();
+    });
+    ['pointercancel', 'lostpointercapture'].forEach(function (t) {
+      b.addEventListener(t, function () { if (curBtn === b) release(); });
+    });
+    b.addEventListener('touchend', iosTap);
+    b.addEventListener('click', function (e) { if (e.detail === 0) powerTap(); }); // keyboard / assistive
+    b.addEventListener('contextmenu', noMenu);
+  })();
   bindPress($('gear'), function () {}); // press feedback only
   $('gear').addEventListener('click', function () { openSheet(true); }); // open on click so the tap can't hit the backdrop
   document.addEventListener('contextmenu', noMenu);
@@ -378,7 +470,7 @@
   // ---- init ----
   $('ip').value = tvIp;
   $('label').value = lsGet(K.label) || DEF_LABEL;
-  updateTrust(); refreshUi(); setState('disconnected');
+  updateTrust(); refreshUi(); setState('disconnected'); setScreenOff(screenOff);
   log('Page loaded. UA: ' + navigator.userAgent.slice(0, 90));
   if (hasToken() && visible()) { retry = true; connect(true); }
 })();

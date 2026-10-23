@@ -60,6 +60,7 @@ svg { pointer-events: none; }
 .key.down { background: var(--key-hi); transform: scale(.94); transition: none; }
 .power { width: 56px; padding: 0; background: var(--red); color: #fff; }
 .power.down { background: #ff7a70; }
+.power.scr-off .ic { opacity: .5; }
 
 /* Remote layout */
 .stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }

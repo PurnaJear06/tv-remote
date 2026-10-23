@@ -1,5 +1,5 @@
 // Bump CACHE when shipping changes so old shells are purged.
-var CACHE = 'tvremote-v3';
+var CACHE = 'tvremote-v4';
 var SHELL = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
 
