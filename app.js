@@ -240,9 +240,9 @@
     p.setAttribute('aria-label', screenOff ? 'Screen off' : 'Screen on');
   }
   function offSteps() {
-    var l = [{ c: 'Press', k: 'KEY_MUTE', w: 2000 }, { c: 'Release', k: 'KEY_MUTE', w: 1200 }], i;
-    for (i = 0; i < 16; i++) l.push({ c: 'Click', k: 'KEY_UP', w: 120 });
-    for (i = 0; i < 11; i++) l.push({ c: 'Click', k: 'KEY_DOWN', w: 120 });
+    var l = [{ c: 'Press', k: 'KEY_MUTE', w: 2000 }, { c: 'Release', k: 'KEY_MUTE', w: 2200 }], i;
+    for (i = 0; i < 16; i++) l.push({ c: 'Click', k: 'KEY_UP', w: 220 });
+    for (i = 0; i < 11; i++) l.push({ c: 'Click', k: 'KEY_DOWN', w: 260 });
     l.push({ c: 'Click', k: 'KEY_ENTER', w: 0 });
     return l;
   }
